@@ -1,5 +1,5 @@
-// API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+// API Configuration - Updated to match backend port
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
 
 class ApiService {
   // Get auth token from localStorage
@@ -35,31 +35,45 @@ class ApiService {
     };
   }
 
-  // Generic API request method
+  // Generic API request method with better error handling
   async makeRequest(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     const defaultOptions = {
       headers: this.getAuthHeaders(),
+      mode: 'cors', // Explicitly enable CORS
+      credentials: 'include', // Include credentials for CORS
     };
 
     try {
+      console.log(`🔗 API Request: ${options.method || 'GET'} ${url}`);
       const response = await fetch(url, { ...defaultOptions, ...options });
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.message || 'API request failed');
+        const errorText = await response.text();
+        console.error(`❌ API Error ${response.status}:`, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
+      const data = await response.json();
+      console.log(`✅ API Success:`, data);
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('🚨 API Request Failed:', error.message);
+      
+      // Check if it's a network error (backend not running)
+      if (error.message.includes('fetch')) {
+        console.warn('⚠️ Backend appears to be offline');
+        throw new Error('Backend server is not running. Please start the backend server.');
+      }
+      
       throw error;
     }
   }
 
-  // Authentication
+  // Authentication with better error handling
   async login(credentials) {
     try {
+      console.log('🔐 Attempting login...');
       const data = await this.makeRequest('/auth/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
@@ -67,14 +81,14 @@ class ApiService {
 
       if (data.success && data.token) {
         this.setAuthToken(data.token);
+        console.log('✅ Login successful');
         return data;
       }
-      throw new Error('Login failed');
+      throw new Error('Login failed - invalid response');
     } catch (error) {
-      // Fallback to mock for development
-      console.warn('Backend not available, using mock authentication');
+      console.warn('⚠️ Backend login failed, using mock authentication');
       if (credentials.username && credentials.password) {
-        const mockToken = 'mock-jwt-token';
+        const mockToken = 'mock-jwt-token-' + Date.now();
         this.setAuthToken(mockToken);
         return {
           success: true,
@@ -86,6 +100,41 @@ class ApiService {
         };
       }
       throw new Error('Invalid credentials');
+    }
+  }
+
+  // Upload method specifically for file uploads
+  async uploadAd(poleId, formData) {
+    const url = `${API_BASE_URL}/poles/${poleId}/ads`;
+    
+    try {
+      console.log(`📤 Uploading file to: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'include',
+        // Don't set Content-Type header for FormData - let browser set it
+        headers: {
+          ...(this.getAuthToken() && { 'Authorization': `Bearer ${this.getAuthToken()}` })
+        },
+        body: formData,
+      });
+
+      console.log(`📨 Upload response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Upload failed:`, errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ Upload successful:`, result);
+      return result;
+    } catch (error) {
+      console.error('🚨 Upload error:', error.message);
+      throw error;
     }
   }
 
@@ -104,7 +153,7 @@ class ApiService {
     try {
       return await this.makeRequest('/poles');
     } catch (error) {
-      // Fallback to mock data
+      console.warn('⚠️ Backend not available, using mock poles data');
       return {
         success: true,
         poles: [
@@ -121,29 +170,8 @@ class ApiService {
     try {
       return await this.makeRequest(`/poles/${poleId}/ads`);
     } catch (error) {
-      console.warn('Backend not available, returning empty ads list');
+      console.warn('⚠️ Backend not available, returning empty ads list');
       return { success: true, ads: [] };
-    }
-  }
-
-  async uploadAd(poleId, formData) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/poles/${poleId}/ads`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.getAuthToken()}`
-        },
-        body: formData, // FormData for file upload
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.warn('Backend upload not available, using local processing');
-      throw error;
     }
   }
 

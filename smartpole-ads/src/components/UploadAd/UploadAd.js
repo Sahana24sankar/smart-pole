@@ -25,6 +25,8 @@ function UploadAd({ poleNumber, onUploadComplete }) {
       
       const response = await fetch(`${API_BASE_URL}/poles/${poleNumber || 1}/ads`, {
         method: 'POST',
+        mode: 'cors', // Explicitly set CORS mode
+        credentials: 'include', // Include credentials
         body: formData,
       });
 
@@ -48,6 +50,16 @@ function UploadAd({ poleNumber, onUploadComplete }) {
       }
     } catch (error) {
       console.error('❌ Upload error:', error);
+      
+      // Check if it's a CORS/Network error
+      if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        console.error('🚨 Backend server is not running or not accessible!');
+        return {
+          success: false,
+          error: 'Backend server is not running. Please start the backend server on port 3002.'
+        };
+      }
+      
       return {
         success: false,
         error: error.message
