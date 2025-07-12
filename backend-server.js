@@ -38,31 +38,7 @@ app.use((req, res, next) => {
 
 // Enhanced CORS with more debugging
 app.use(cors({
-  origin: function(origin, callback) {
-    console.log('🔍 CORS Check - Origin:', origin);
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001', 
-      'http://localhost:3002',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:3001',
-      'http://127.0.0.1:3002'
-    ];
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      console.log('✅ CORS: No origin, allowing request');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('✅ CORS: Origin allowed');
-      callback(null, true);
-    } else {
-      console.log('❌ CORS: Origin not allowed:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -715,6 +691,28 @@ app.get('/ads', async (req, res) => {
     console.error('❌ Error getting ads:', error);
     res.json([]); // Return empty array on error
   }
+// Add route to manually fix database column type
+app.get('/api/fix-column-type', async (req, res) => {
+  try {
+    console.log('🔧 Manually fixing image column type...');
+    const result = await dbQueries.fixImageColumnType();
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Column type fixed successfully!' : 'Failed to fix column type',
+      error: result.error || null
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+startServer();
+
+module.exports = app;
 });
 
 // Add route to manually fix database column type
