@@ -118,13 +118,11 @@ const upload = multer({
   }
 });
 
-// Initialize database connection and create table
+// Initialize database connection
 const initializeDatabase = async () => {
   console.log('🔄 Initializing database...');
   const connected = await testConnection();
-  if (connected) {
-    await dbQueries.createTableIfNotExists();
-  }
+  // Database setup (table creation, etc.) is handled automatically in database-connection.js
   return connected;
 };
 

@@ -1,4 +1,4 @@
-# SMARTPOLE-ADS
+# Smart-Poles - Advertisement Management System
 
 A React-based dashboard for managing digital advertisements on smart poles.
 
